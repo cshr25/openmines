@@ -146,6 +146,9 @@ class VisualGrapher:
             self.ax.text(truck_data['position'][0], truck_data['position'][1] - 0.035, truck, ha='center', fontsize=3,
                          color='black')
 
+        # 绘制道路网络连接
+        self.draw_road_network(tick_data)
+
         # 绘制交通堵塞事件
         jam_positions = mine_data.get("jams", {}).get("position", [])
         lasting_times = mine_data.get("jams", {}).get("last_times", [])
@@ -156,6 +159,38 @@ class VisualGrapher:
             # 可选：显示堵塞持续时间
             self.ax.text(jam_position[0], jam_position[1] + 0.02, f"{lasting_time:.2f}s", ha='center', fontsize=4,
                          color='red')
+
+    def draw_road_network(self, tick_data):
+        """
+        绘制道路网络连接线
+        :param tick_data: 当前时刻的数据
+        """
+        # 获取充电站位置 (假设为 (0, 0))
+        charging_position = [0, 0]
+        
+        # 获取所有装载区位置
+        load_positions = []
+        for load_site, load_data in tick_data['load_site_states'].items():
+            load_positions.append(load_data['position'])
+        
+        # 获取所有卸载区位置
+        dump_positions = []
+        for dump_site, dump_data in tick_data['dump_site_states'].items():
+            dump_positions.append(dump_data['position'])
+        
+        # 绘制充电站到装载区的连接线（初始运输路线）
+        for load_pos in load_positions:
+            self.ax.plot([charging_position[0], load_pos[0]], 
+                        [charging_position[1], load_pos[1]], 
+                        'gray', linewidth=0.8, alpha=0.7)
+        
+        # 绘制装载区到卸载区的双向连接线（简化显示）
+        for i, load_pos in enumerate(load_positions):
+            for j, dump_pos in enumerate(dump_positions):
+                # 只绘制一条线表示双向连接，避免视觉混乱
+                self.ax.plot([load_pos[0], dump_pos[0]], 
+                            [load_pos[1], dump_pos[1]], 
+                            'lightblue', linewidth=0.5, alpha=0.6)
 
     def place_image(self, xy, img, zoom=1):
         """
