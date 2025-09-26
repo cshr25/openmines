@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SimPy 仿真参数配置器</title>
+    <link rel="stylesheet" href="simpy_setup.css" />
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="page-header__title">
+        <h1>SimPy 仿真参数配置器</h1>
+        <p>通过可视化界面整理仿真所需的资源、流程与时序数据，并导出标准 JSON 配置。</p>
+      </div>
+      <div class="page-header__actions">
+        <button id="reset-all" class="ghost">恢复默认示例</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel" id="scenario-panel">
+        <header class="panel__header">
+          <h2>基础信息</h2>
+          <p>配置场景名称、时间基准及全局描述。</p>
+        </header>
+        <div class="panel__body grid-2">
+          <label>
+            场景名称
+            <input type="text" id="scenario-name" placeholder="矿山运输调度" required />
+          </label>
+          <label>
+            随机种子
+            <input type="number" id="random-seed" min="0" step="1" placeholder="42" />
+          </label>
+          <label>
+            仿真开始时间
+            <input type="datetime-local" id="start-time" />
+          </label>
+          <label>
+            仿真时长
+            <div class="inline-fields">
+              <input type="number" id="duration" min="0" step="0.25" placeholder="480" />
+              <select id="duration-unit">
+                <option value="minutes" selected>分钟</option>
+                <option value="hours">小时</option>
+                <option value="days">天</option>
+              </select>
+            </div>
+          </label>
+          <label class="full-width">
+            场景说明
+            <textarea id="scenario-description" rows="3" placeholder="用于说明实验假设、场地环境等补充信息。"></textarea>
+          </label>
+        </div>
+      </section>
+
+      <section class="panel" id="resource-panel">
+        <header class="panel__header">
+          <div>
+            <h2>资源设置</h2>
+            <p>定义将被多个流程共享的资源，例如设备、人员或库位。</p>
+          </div>
+          <button id="add-resource" class="ghost">新增资源</button>
+        </header>
+        <div id="resource-list" class="stack"></div>
+      </section>
+
+      <section class="panel" id="process-panel">
+        <header class="panel__header">
+          <div>
+            <h2>流程设置</h2>
+            <p>描述实体到达、处理步骤以及占用资源的逻辑。</p>
+          </div>
+          <button id="add-process" class="ghost">新增流程</button>
+        </header>
+        <div id="process-list" class="stack"></div>
+      </section>
+
+      <section class="panel" id="export-panel">
+        <header class="panel__header">
+          <h2>导出配置</h2>
+          <p>生成的 JSON 可直接被后端脚本读取，也可供同事共享。</p>
+        </header>
+        <div class="panel__body">
+          <div class="button-row">
+            <button id="preview-json">生成预览</button>
+            <button id="download-json" class="ghost">下载 JSON</button>
+            <button id="copy-json" class="ghost">复制到剪贴板</button>
+          </div>
+          <pre id="json-preview" class="code-block" aria-live="polite"></pre>
+        </div>
+      </section>
+    </main>
+
+    <datalist id="resource-names"></datalist>
+
+    <template id="resource-template">
+      <article class="card resource-card">
+        <header class="card__header">
+          <h3>资源</h3>
+          <button type="button" class="ghost" data-action="remove">删除</button>
+        </header>
+        <div class="card__body grid-2">
+          <label>
+            名称
+            <input type="text" data-field="name" placeholder="装载机 A" required />
+          </label>
+          <label>
+            容量
+            <input type="number" data-field="capacity" min="1" step="1" placeholder="1" required />
+          </label>
+          <label>
+            排队上限
+            <input type="number" data-field="queue" min="0" step="1" placeholder="0 表示不限" />
+          </label>
+          <label>
+            优先规则
+            <select data-field="priority">
+              <option value="fifo" selected>先到先服务 (FIFO)</option>
+              <option value="lifo">后进先出 (LIFO)</option>
+              <option value="priority">优先级</option>
+            </select>
+          </label>
+          <label class="full-width">
+            备注
+            <textarea rows="2" data-field="notes" placeholder="填写维护周期、备用策略等。"></textarea>
+          </label>
+        </div>
+      </article>
+    </template>
+
+    <template id="process-template">
+      <article class="card process-card">
+        <header class="card__header">
+          <h3>流程</h3>
+          <div class="card__actions">
+            <button type="button" class="ghost" data-action="add-step">新增步骤</button>
+            <button type="button" class="ghost" data-action="remove">删除</button>
+          </div>
+        </header>
+        <div class="card__body grid-2">
+          <label class="full-width">
+            名称
+            <input type="text" data-field="name" placeholder="运输车辆" required />
+          </label>
+          <label>
+            到达分布
+            <select data-field="arrival-distribution">
+              <option value="deterministic" selected>固定间隔</option>
+              <option value="poisson">泊松分布 (速率)</option>
+              <option value="uniform">均匀分布</option>
+              <option value="normal">正态分布</option>
+            </select>
+          </label>
+          <label>
+            参数 1
+            <input type="number" data-field="arrival-param1" min="0" step="0.01" placeholder="间隔或均值" required />
+          </label>
+          <label>
+            参数 2
+            <input type="number" data-field="arrival-param2" min="0" step="0.01" placeholder="标准差/上界" />
+          </label>
+          <label>
+            时间单位
+            <select data-field="arrival-unit">
+              <option value="minutes" selected>分钟</option>
+              <option value="hours">小时</option>
+              <option value="seconds">秒</option>
+            </select>
+          </label>
+          <label>
+            初始实体数
+            <input type="number" data-field="initial-entities" min="0" step="1" placeholder="0" />
+          </label>
+          <label class="full-width">
+            备注
+            <textarea rows="2" data-field="notes" placeholder="用于标注进入条件或触发规则。"></textarea>
+          </label>
+        </div>
+        <section class="step-section">
+          <header class="step-section__header">
+            <h4>流程步骤</h4>
+            <p>每个步骤可以占用一个或多个资源，并设置处理时间分布。</p>
+          </header>
+          <div class="step-list stack"></div>
+        </section>
+      </article>
+    </template>
+
+    <template id="step-template">
+      <article class="card step-card">
+        <header class="card__header">
+          <h4>步骤</h4>
+          <button type="button" class="ghost" data-action="remove">删除</button>
+        </header>
+        <div class="card__body grid-2">
+          <label>
+            步骤名称
+            <input type="text" data-field="step-name" placeholder="等待装载" required />
+          </label>
+          <label>
+            关联资源
+            <input type="text" list="resource-names" data-field="resource-name" placeholder="装载机 A" />
+          </label>
+          <label>
+            占用数量
+            <input type="number" data-field="seize-amount" min="0" step="0.1" placeholder="1" />
+          </label>
+          <label>
+            时长分布
+            <select data-field="duration-distribution">
+              <option value="deterministic" selected>固定值</option>
+              <option value="uniform">均匀分布</option>
+              <option value="triangular">三角分布</option>
+              <option value="normal">正态分布</option>
+            </select>
+          </label>
+          <label>
+            参数 1
+            <input type="number" data-field="duration-param1" min="0" step="0.01" placeholder="均值" required />
+          </label>
+          <label>
+            参数 2
+            <input type="number" data-field="duration-param2" min="0" step="0.01" placeholder="标准差/上界" />
+          </label>
+          <label>
+            时间单位
+            <select data-field="duration-unit">
+              <option value="minutes" selected>分钟</option>
+              <option value="hours">小时</option>
+              <option value="seconds">秒</option>
+            </select>
+          </label>
+          <label>
+            优先级
+            <input type="number" data-field="priority" step="1" placeholder="0" />
+          </label>
+        </div>
+      </article>
+    </template>
+
+    <script src="simpy_setup.js"></script>
+  </body>
+</html>
